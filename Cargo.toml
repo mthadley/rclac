@@ -1,0 +1,8 @@
+[package]
+name = "rclac"
+version = "0.1.0"
+authors = ["Michael Hadley <michael.hadley@liferay.com>"]
+
+[dependencies]
+ansi_term = "0.9"
+rustyline = "1.0.0"
