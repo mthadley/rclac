@@ -37,14 +37,6 @@ impl State {
         State { stack: Vec::with_capacity(0xFF) }
     }
 
-    pub fn pop2(&mut self) -> Option<(isize, isize)> {
-        if self.stack.len() > 1 {
-            Some((self.pop().unwrap(), self.pop().unwrap()))
-        } else {
-            None
-        }
-    }
-
     pub fn exec(&mut self, op: &Op) {
         match *op {
             Op::Add => {
@@ -91,6 +83,14 @@ impl State {
     fn pop(&mut self) -> Option<isize> {
         if self.stack.len() > 0 {
             self.stack.pop()
+        } else {
+            None
+        }
+    }
+
+    fn pop2(&mut self) -> Option<(isize, isize)> {
+        if self.stack.len() > 1 {
+            Some((self.pop().unwrap(), self.pop().unwrap()))
         } else {
             None
         }
