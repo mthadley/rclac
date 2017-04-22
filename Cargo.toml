@@ -5,4 +5,4 @@ authors = ["Michael Hadley <michael.hadley@liferay.com>"]
 
 [dependencies]
 ansi_term = "0.9"
-rustyline = "1.0.0"
+rustyline = { git = "https://github.com/mthadley/rustyline", branch = "hints" }

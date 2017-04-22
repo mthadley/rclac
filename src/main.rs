@@ -1,9 +1,10 @@
 extern crate ansi_term;
 extern crate rustyline;
 
-use ansi_term::Color::{Green, Blue};
+use ansi_term::Color::{Green, Yellow};
 use rustyline::completion::Completer;
 use rustyline::Editor;
+use rustyline::Config;
 use std::fmt::{Display, Formatter};
 use std::str::FromStr;
 
@@ -11,7 +12,9 @@ static PROMPT: &'static str = ">> ";
 
 fn main() {
     let mut state = State::new();
-    let mut editor = Editor::<State>::new();
+
+    let config = Config::builder().tab_completion(false).build();
+    let mut editor = Editor::<State>::with_config(config);
 
     loop {
         editor.set_completer(Some(state.to_owned()));
@@ -23,7 +26,8 @@ fn main() {
             Err(_) => break,
         }
 
-        println!("{}", Green.paint(format!("{}", state.peek().unwrap_or(&0))));
+        println!("= {}",
+                 Green.paint(format!("{}", state.peek().unwrap_or(&0))));
     }
 }
 
@@ -54,12 +58,18 @@ impl State {
             Op::Push(value) => {
                 self.push(value);
             }
+            Op::Sum => {
+                let mut sum = 0;
+                while let Some(val) = self.pop() {
+                    sum += val;
+                }
+                self.push(sum);
+            }
             Op::Swap => {
                 self.pop2().map(|(a, b)| {
                     self.push(a).push(b);
                 });
             }
-            Op::Print => println!("{}", Blue.paint(format!("{}", self))),
             Op::Noop => {}
         }
     }
@@ -108,7 +118,8 @@ impl Display for State {
 
 impl Completer for State {
     fn complete(&self, line: &str, _: usize) -> rustyline::Result<(usize, Vec<String>)> {
-        Ok((0, vec![format!("{}", self.to_owned().eval(line))]))
+        let state_display = Yellow.paint(format!("{}", self.to_owned().eval(line)));
+        Ok((0, vec![format!("{}", state_display)]))
     }
 }
 
@@ -120,18 +131,18 @@ enum Op {
     Push(isize),
     Sub,
     Swap,
-    Print,
+    Sum,
 }
 
 impl<'a> From<&'a str> for Op {
     fn from(string: &'a str) -> Self {
         match string {
-            "p" => Op::Print,
             "*" => Op::Mul,
             "+" => Op::Add,
             "-" => Op::Sub,
             "inv" => Op::Inv,
             "swap" => Op::Swap,
+            "sum" => Op::Sum,
             string => {
                 isize::from_str(string)
                     .map(|val| Op::Push(val))
