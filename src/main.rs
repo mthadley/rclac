@@ -49,6 +49,9 @@ impl State {
             Op::Clear => {
                 self.clear();
             }
+            Op::Double => {
+                self.pop().map(|a| self.push(a * 2));
+            }
             Op::Exp => {
                 self.pop2().map(|(a, b)| self.push(b.pow(a as u32)));
             }
@@ -79,9 +82,7 @@ impl State {
                 self.push(sum);
             }
             Op::Swap => {
-                self.pop2().map(|(a, b)| {
-                    self.push(a).push(b);
-                });
+                self.pop2().map(|(a, b)| self.push(a).push(b));
             }
             Op::Noop => {}
         }
@@ -147,6 +148,7 @@ impl Completer for State {
 enum Op {
     Add,
     Clear,
+    Double,
     Exp,
     Fact,
     Inv,
@@ -164,6 +166,7 @@ impl<'a> From<&'a str> for Op {
     fn from(string: &'a str) -> Self {
         match string {
             "*" => Op::Mul,
+            "**" => Op::Double,
             "+" => Op::Add,
             "-" => Op::Sub,
             "!" => Op::Fact,
