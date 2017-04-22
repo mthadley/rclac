@@ -3,10 +3,10 @@ extern crate rustyline;
 
 use ansi_term::Color::{Green, Yellow};
 use rustyline::completion::Completer;
-use rustyline::Editor;
-use rustyline::Config;
+use rustyline::{Config, Editor};
 use std::fmt::{Display, Formatter};
 use std::str::FromStr;
+use std::vec::Drain;
 
 static PROMPT: &'static str = ">> ";
 
@@ -46,6 +46,18 @@ impl State {
             Op::Add => {
                 self.pop2().map(|(a, b)| self.push(a + b));
             }
+            Op::Clear => {
+                self.clear();
+            }
+            Op::Exp => {
+                self.pop2().map(|(a, b)| self.push(b.pow(a as u32)));
+            }
+            Op::Fact => {
+                self.pop().map(|a| self.push((1..a + 1).product()));
+            }
+            Op::Square => {
+                self.pop().map(|a| self.push(a.pow(2)));
+            }
             Op::Sub => {
                 self.pop2().map(|(a, b)| self.push(b - a));
             }
@@ -55,14 +67,15 @@ impl State {
             Op::Inv => {
                 self.pop().map(|a| self.push(-a));
             }
+            Op::Prod => {
+                let product = self.drain().product();
+                self.push(product);
+            }
             Op::Push(value) => {
                 self.push(value);
             }
             Op::Sum => {
-                let mut sum = 0;
-                while let Some(val) = self.pop() {
-                    sum += val;
-                }
+                let sum = self.drain().sum();
                 self.push(sum);
             }
             Op::Swap => {
@@ -83,6 +96,14 @@ impl State {
 
     pub fn peek(&self) -> Option<&isize> {
         self.stack.last()
+    }
+
+    fn clear(&mut self) {
+        self.stack.clear();
+    }
+
+    fn drain(&mut self) -> Drain<isize> {
+        self.stack.drain(..)
     }
 
     fn push(&mut self, val: isize) -> &mut Self {
@@ -125,10 +146,15 @@ impl Completer for State {
 
 enum Op {
     Add,
+    Clear,
+    Exp,
+    Fact,
     Inv,
     Mul,
     Noop,
+    Prod,
     Push(isize),
+    Square,
     Sub,
     Swap,
     Sum,
@@ -140,9 +166,14 @@ impl<'a> From<&'a str> for Op {
             "*" => Op::Mul,
             "+" => Op::Add,
             "-" => Op::Sub,
+            "!" => Op::Fact,
+            "^" => Op::Exp,
+            "^^" => Op::Square,
+            "c" => Op::Clear,
             "inv" => Op::Inv,
             "swap" => Op::Swap,
             "sum" => Op::Sum,
+            "prod" => Op::Prod,
             string => {
                 isize::from_str(string)
                     .map(|val| Op::Push(val))
