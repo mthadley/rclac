@@ -1,14 +1,19 @@
 extern crate ansi_term;
 extern crate rustyline;
+#[macro_use]
+extern crate lazy_static;
+extern crate regex;
 
 use ansi_term::Color::{Green, Yellow};
+use regex::Regex;
 use rustyline::completion::Completer;
 use rustyline::{Config, Editor};
+use std::collections::HashMap;
 use std::fmt::{Display, Formatter};
 use std::str::FromStr;
 use std::vec::Drain;
 
-static PROMPT: &'static str = ">> ";
+static PROMPT: &str = ">> ";
 
 fn main() {
     let mut state = State::new();
@@ -34,15 +39,19 @@ fn main() {
 #[derive(Clone)]
 struct State {
     stack: Vec<isize>,
+    vars: HashMap<String, isize>,
 }
 
 impl State {
     pub fn new() -> State {
-        State { stack: Vec::with_capacity(0xFF) }
+        State {
+            stack: Vec::with_capacity(0xFF),
+            vars: HashMap::new(),
+        }
     }
 
-    pub fn exec(&mut self, op: &Op) {
-        match *op {
+    pub fn exec(&mut self, op: Op) {
+        match op {
             Op::Add => {
                 self.pop2().map(|(a, b)| self.push(a + b));
             }
@@ -84,13 +93,19 @@ impl State {
             Op::Swap => {
                 self.pop2().map(|(a, b)| self.push(a).push(b));
             }
+            Op::VarInit(name) => {
+                self.pop().map(|a| self.add_var(name, a));
+            }
+            Op::VarRef(name) => {
+                self.get_var(&name).map(|a| self.push(a));
+            }
             Op::Noop => {}
         }
     }
 
     pub fn eval(&mut self, cmds: &str) -> &mut Self {
         for token in cmds.split_whitespace() {
-            self.exec(&token.into())
+            self.exec(token.into())
         }
         self
     }
@@ -127,6 +142,14 @@ impl State {
             None
         }
     }
+
+    fn add_var(&mut self, key: String, value: isize) {
+        self.vars.insert(key, value);
+    }
+
+    fn get_var(&self, key: &String) -> Option<isize> {
+        self.vars.get(key).cloned()
+    }
 }
 
 impl Display for State {
@@ -158,12 +181,14 @@ enum Op {
     Push(isize),
     Square,
     Sub,
-    Swap,
     Sum,
+    Swap,
+    VarInit(String),
+    VarRef(String),
 }
 
 impl<'a> From<&'a str> for Op {
-    fn from(string: &'a str) -> Self {
+    fn from(string: &str) -> Self {
         match string {
             "*" => Op::Mul,
             "**" => Op::Double,
@@ -177,13 +202,40 @@ impl<'a> From<&'a str> for Op {
             "swap" => Op::Swap,
             "sum" => Op::Sum,
             "prod" => Op::Prod,
-            string => {
-                isize::from_str(string)
-                    .map(|val| Op::Push(val))
-                    .unwrap_or(Op::Noop)
-            }
+            token => parse_op(token),
         }
     }
+}
+
+fn parse_op(token: &str) -> Op {
+    parse_var_init(token)
+        .or_else(|| parse_var_ref(token))
+        .or_else(|| parse_push(token))
+        .unwrap_or(Op::Noop)
+}
+
+fn parse_push(token: &str) -> Option<Op> {
+    isize::from_str(token).ok().map(Op::Push)
+}
+
+fn parse_var_init(token: &str) -> Option<Op> {
+    lazy_static! {
+        static ref RE: Regex = Regex::new(r"=([a-zA-Z][a-zA-Z0-9]*)").unwrap();
+    }
+
+    RE.captures(token)
+        .and_then(|captures| captures.get(1))
+        .map(|re_match| Op::VarInit(re_match.as_str().to_string()))
+}
+
+fn parse_var_ref(token: &str) -> Option<Op> {
+    lazy_static! {
+        static ref RE: Regex = Regex::new(r"\$([a-zA-Z][a-zA-Z0-9]*)").unwrap();
+    }
+
+    RE.captures(token)
+        .and_then(|captures| captures.get(1))
+        .map(|re_match| Op::VarRef(re_match.as_str().to_string()))
 }
 
 #[cfg(test)]
@@ -194,9 +246,9 @@ mod test {
     fn exec() {
         let mut state = State::new();
 
-        state.exec(&Op::Push(3));
-        state.exec(&Op::Push(5));
-        state.exec(&Op::Add);
+        state.exec(Op::Push(3));
+        state.exec(Op::Push(5));
+        state.exec(Op::Add);
         assert_eq!(state.peek(), Some(&8));
     }
 
@@ -206,5 +258,15 @@ mod test {
 
         state.eval("3 5 +");
         assert_eq!(state.peek(), Some(&8));
+    }
+
+    #[test]
+    fn variables() {
+        let mut state = State::new();
+
+        state.eval("3 =foo");
+        assert_eq!(state.peek(), None);
+        state.eval("$foo");
+        assert_eq!(state.peek(), Some(&3));
     }
 }
