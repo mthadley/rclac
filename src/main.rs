@@ -1,8 +1,8 @@
 extern crate ansi_term;
-extern crate rustyline;
 #[macro_use]
 extern crate lazy_static;
 extern crate regex;
+extern crate rustyline;
 
 use ansi_term::Color::{Green, Yellow};
 use regex::Regex;
@@ -31,8 +31,10 @@ fn main() {
             Err(_) => break,
         }
 
-        println!("= {}",
-                 Green.paint(format!("{}", state.peek().unwrap_or(&0))));
+        println!(
+            "= {}",
+            Green.paint(format!("{}", state.peek().unwrap_or(&0)))
+        );
     }
 }
 
