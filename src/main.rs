@@ -220,22 +220,24 @@ fn parse_push(token: &str) -> Option<Op> {
     isize::from_str(token).ok().map(Op::Push)
 }
 
-fn parse_var_init(token: &str) -> Option<Op> {
-    lazy_static! {
-        static ref RE: Regex = Regex::new(r"=([a-zA-Z][a-zA-Z0-9]*)").unwrap();
-    }
+lazy_static! {
+    static ref INIT_RE: Regex = Regex::new(r"=([a-zA-Z][a-zA-Z0-9]*)").unwrap();
+}
 
-    RE.captures(token)
+
+fn parse_var_init(token: &str) -> Option<Op> {
+    INIT_RE.captures(token)
         .and_then(|captures| captures.get(1))
         .map(|re_match| Op::VarInit(re_match.as_str().to_string()))
 }
 
-fn parse_var_ref(token: &str) -> Option<Op> {
-    lazy_static! {
-        static ref RE: Regex = Regex::new(r"\$([a-zA-Z][a-zA-Z0-9]*)").unwrap();
-    }
+lazy_static! {
+    static ref VAR_RE: Regex = Regex::new(r"\$([a-zA-Z][a-zA-Z0-9]*)").unwrap();
+}
 
-    RE.captures(token)
+
+fn parse_var_ref(token: &str) -> Option<Op> {
+    VAR_RE.captures(token)
         .and_then(|captures| captures.get(1))
         .map(|re_match| Op::VarRef(re_match.as_str().to_string()))
 }
