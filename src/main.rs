@@ -106,7 +106,9 @@ impl State {
                 }
             }
             Op::VarRef(name) => {
-                self.get_var(&name).map(|a| self.push(a));
+                if let Some(a) = self.get_var(&name) {
+                    self.push(a);
+                }
             }
             Op::Noop => {}
         }
