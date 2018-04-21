@@ -55,31 +55,34 @@ impl State {
     pub fn exec(&mut self, op: Op) {
         match op {
             Op::Add => {
-                self.pop2().map(|(a, b)| self.push(a + b));
+                self.apply2(|a, b| a + b);
             }
             Op::Clear => {
                 self.clear();
             }
+            Op::Div => {
+                self.apply2(|a, b| save_div(b, a).unwrap_or(0));
+            }
             Op::Double => {
-                self.pop().map(|a| self.push(a * 2));
+                self.apply(|a| a * 2);
             }
             Op::Exp => {
-                self.pop2().map(|(a, b)| self.push(b.pow(a as u32)));
+                self.apply2(|a, b| b.pow(a as u32));
             }
             Op::Fact => {
-                self.pop().map(|a| self.push((1..a + 1).product()));
+                self.apply(|a| (1..a + 1).product());
             }
             Op::Square => {
-                self.pop().map(|a| self.push(a.pow(2)));
+                self.apply(|a| a.pow(2));
             }
             Op::Sub => {
-                self.pop2().map(|(a, b)| self.push(b - a));
+                self.apply2(|a, b| b - a);
             }
             Op::Mul => {
-                self.pop2().map(|(a, b)| self.push(a * b));
+                self.apply2(|a, b| a * b);
             }
             Op::Inv => {
-                self.pop().map(|a| self.push(-a));
+                self.apply(|a| -a);
             }
             Op::Prod => {
                 let product = self.drain().product();
@@ -93,10 +96,14 @@ impl State {
                 self.push(sum);
             }
             Op::Swap => {
-                self.pop2().map(|(a, b)| self.push(a).push(b));
+                if let Some((a, b)) = self.pop2() {
+                    self.push(a).push(b);
+                }
             }
             Op::VarInit(name) => {
-                self.pop().map(|a| self.add_var(name, a));
+                if let Some(a) = self.stack.pop() {
+                    self.add_var(name, a);
+                }
             }
             Op::VarRef(name) => {
                 self.get_var(&name).map(|a| self.push(a));
@@ -129,17 +136,27 @@ impl State {
         self
     }
 
-    fn pop(&mut self) -> Option<isize> {
-        if self.stack.len() > 0 {
-            self.stack.pop()
-        } else {
-            None
+    fn apply<F>(&mut self, func: F)
+    where
+        F: Fn(isize) -> isize,
+    {
+        if let Some(val) = self.stack.pop().map(func) {
+            self.push(val);
+        }
+    }
+
+    fn apply2<F>(&mut self, func: F)
+    where
+        F: Fn(isize, isize) -> isize,
+    {
+        if let Some((a, b)) = self.pop2() {
+            self.stack.push(func(a, b));
         }
     }
 
     fn pop2(&mut self) -> Option<(isize, isize)> {
         if self.stack.len() > 1 {
-            Some((self.pop().unwrap(), self.pop().unwrap()))
+            Some((self.stack.pop().unwrap(), self.stack.pop().unwrap()))
         } else {
             None
         }
@@ -173,6 +190,7 @@ impl Completer for State {
 enum Op {
     Add,
     Clear,
+    Div,
     Double,
     Exp,
     Fact,
@@ -195,6 +213,7 @@ impl<'a> From<&'a str> for Op {
             "*" => Op::Mul,
             "**" => Op::Double,
             "+" => Op::Add,
+            "/" => Op::Div,
             "-" => Op::Sub,
             "!" => Op::Fact,
             "^" => Op::Exp,
@@ -224,9 +243,9 @@ lazy_static! {
     static ref INIT_RE: Regex = Regex::new(r"=([a-zA-Z][a-zA-Z0-9]*)").unwrap();
 }
 
-
 fn parse_var_init(token: &str) -> Option<Op> {
-    INIT_RE.captures(token)
+    INIT_RE
+        .captures(token)
         .and_then(|captures| captures.get(1))
         .map(|re_match| Op::VarInit(re_match.as_str().to_string()))
 }
@@ -235,11 +254,19 @@ lazy_static! {
     static ref VAR_RE: Regex = Regex::new(r"\$([a-zA-Z][a-zA-Z0-9]*)").unwrap();
 }
 
-
 fn parse_var_ref(token: &str) -> Option<Op> {
-    VAR_RE.captures(token)
+    VAR_RE
+        .captures(token)
         .and_then(|captures| captures.get(1))
         .map(|re_match| Op::VarRef(re_match.as_str().to_string()))
+}
+
+fn save_div(a: isize, b: isize) -> Option<isize> {
+    if b == 0 {
+        None
+    } else {
+        Some(a / b)
+    }
 }
 
 #[cfg(test)]
@@ -272,5 +299,11 @@ mod test {
         assert_eq!(state.peek(), None);
         state.eval("$foo");
         assert_eq!(state.peek(), Some(&3));
+    }
+
+    #[test]
+    fn test_save_div() {
+        assert_eq!(save_div(24, 2), Some(12));
+        assert_eq!(save_div(24, 0), None);
     }
 }
