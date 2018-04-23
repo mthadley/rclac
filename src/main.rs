@@ -140,7 +140,7 @@ impl State {
 
     fn apply<F>(&mut self, func: F)
     where
-        F: Fn(isize) -> isize,
+        F: FnOnce(isize) -> isize,
     {
         if let Some(val) = self.stack.pop().map(func) {
             self.push(val);
@@ -149,7 +149,7 @@ impl State {
 
     fn apply2<F>(&mut self, func: F)
     where
-        F: Fn(isize, isize) -> isize,
+        F: FnOnce(isize, isize) -> isize,
     {
         if let Some((a, b)) = self.pop2() {
             self.stack.push(func(a, b));
