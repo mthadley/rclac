@@ -138,19 +138,13 @@ impl State {
         self
     }
 
-    fn apply<F>(&mut self, func: F)
-    where
-        F: FnOnce(isize) -> isize,
-    {
+    fn apply(&mut self, func: impl FnOnce(isize) -> isize) {
         if let Some(val) = self.stack.pop().map(func) {
             self.push(val);
         }
     }
 
-    fn apply2<F>(&mut self, func: F)
-    where
-        F: FnOnce(isize, isize) -> isize,
-    {
+    fn apply2(&mut self, func: impl FnOnce(isize, isize) -> isize) {
         if let Some((a, b)) = self.pop2() {
             self.stack.push(func(a, b));
         }
